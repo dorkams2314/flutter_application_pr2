@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'notes_search_cubit.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +16,10 @@ class MyApp extends StatelessWidget {
       title: 'Notes',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: const NotesPage(),
+      home: BlocProvider(
+        create: (_) => NotesSearchCubit(),
+        child: const NotesPage(),
+      ),
     );
   }
 }
@@ -141,53 +147,76 @@ class _NotesPageState extends State<NotesPage> {
                         'Your notes (${_notes.length})',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        onChanged: context.read<NotesSearchCubit>().search,
+                        decoration: const InputDecoration(
+                          labelText: 'Search notes',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-            if (_notes.isEmpty)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('No notes yet. Write a note and tap Save.'),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                sliver: SliverList.builder(
-                  itemCount: _notes.length,
-                  itemBuilder: (context, index) {
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(_notes[index]),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Edit note',
-                                  onPressed: () => _editNote(index),
-                                  icon: const Icon(Icons.edit_outlined),
-                                ),
-                                IconButton(
-                                  tooltip: 'Delete note',
-                                  onPressed: () => _deleteNote(index),
-                                  icon: const Icon(Icons.delete_outline),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+            BlocBuilder<NotesSearchCubit, String>(
+              builder: (context, query) {
+                final matchingNotes = _notes.indexed
+                    .where((entry) => entry.$2.toLowerCase().contains(query))
+                    .toList();
+
+                if (matchingNotes.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        _notes.isEmpty
+                            ? 'No notes yet. Write a note and tap Save.'
+                            : 'No notes match your search.',
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
+                  );
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverList.builder(
+                    itemCount: matchingNotes.length,
+                    itemBuilder: (context, position) {
+                      final (index, note) = matchingNotes[position];
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(note),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Edit note',
+                                    onPressed: () => _editNote(index),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete note',
+                                    onPressed: () => _deleteNote(index),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
